@@ -1,5 +1,26 @@
-/* global elevators, floors */
-function getWorkToGetTo(elevator, floorNum) {
+declare var elevators: ReadonlyArray<Elevator>;
+declare var floors: ReadonlyArray<Floor>;
+
+type FloorNumber = number;
+
+interface Elevator {
+  readonly destinationQueue: ReadonlyArray<FloorNumber>
+  currentFloor(): FloorNumber
+  goToFloor(floorNum: FloorNumber): void
+  getPressedFloors(): ReadonlyArray<FloorNumber>;
+
+  on(name: 'floor_button_pressed', handler: (floorNum: FloorNumber) => void): void;
+  on(name: 'idle', handler: () => void): void;
+}
+
+interface Floor {
+  floorNum(): FloorNumber;
+
+  on(name: 'up_button_pressed', handler: () => void): void;
+  on(name: 'down_button_pressed', handler: () => void): void;
+}
+
+function getWorkToGetTo(elevator: Elevator, floorNum: FloorNumber): number {
   const targets = [elevator.currentFloor(), ...elevator.destinationQueue, floorNum];
   let distance = 0;
   for (let i = 1; i < targets.length; i += 1) {
@@ -10,7 +31,11 @@ function getWorkToGetTo(elevator, floorNum) {
   return distance;
 }
 
-export function getClosestElevator(elevators, floorNum) {
+export function getClosestElevator(elevators: ReadonlyArray<Elevator>, floorNum: FloorNumber): Elevator {
+  if (elevators.length === 0) {
+    throw new Error('Must provide an elevator')
+  }
+
   const closest = elevators.slice();
   closest.sort((e1, e2) => {
     const e1Index = e1.destinationQueue.indexOf(floorNum);
@@ -33,13 +58,13 @@ export function getClosestElevator(elevators, floorNum) {
   return closest[0];
 }
 
-export function goToClosest(elevator, floorNumbers) {
+export function goToClosest(elevator: Elevator, floorNumbers: ReadonlyArray<FloorNumber>): void {
   if (floorNumbers.length === 0) {
     return;
   }
 
   const floorsByDistance = floorNumbers.slice(0);
-  floorsByDistance.sort((f1, f2) => Math.abs(elevator.currentFloor() - f1)
+  floorsByDistance.sort((f1, f2): number => Math.abs(elevator.currentFloor() - f1)
     - Math.abs(elevator.currentFloor() - f2));
   elevator.goToFloor(floorsByDistance[0]);
 }
@@ -49,12 +74,12 @@ elevators.forEach((elevator) => {
     goToClosest(elevator, elevator.getPressedFloors());
   });
 
-  elevator.on('floor_button_pressed', (floorNum) => {
+  elevator.on('floor_button_pressed', (floorNum: FloorNumber) => {
     elevator.goToFloor(floorNum);
   });
 });
 
-floors.forEach((floor) => {
+floors.forEach((floor: Floor) => {
   floor.on('up_button_pressed', () => {
     getClosestElevator(elevators, floor.floorNum()).goToFloor(floor.floorNum());
   });

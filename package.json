@@ -7,17 +7,20 @@
   "author": "Daniel Holmes <daniel@danielholmes.org>",
   "license": "MIT",
   "scripts": {
+    "ts": "tsc -p tsconfig.json",
     "lint": "eslint --fix src",
     "lint:check": "eslint src",
     "test": "jest --env=jsdom",
-    "build": "run-p test lint:check && babel -o ./dist/init.js src/init.js && node ./scripts/build.js"
+    "build": "run-p test lint:check ts && babel -o ./dist/init.js src/init.ts && node ./scripts/build.js"
   },
   "devDependencies": {
     "@babel/cli": "^7.7.4",
     "@babel/core": "^7.7.4",
     "@babel/preset-env": "^7.7.4",
+    "@babel/preset-typescript": "^7.7.4",
+    "@typescript-eslint/eslint-plugin": "^2.10.0",
+    "@typescript-eslint/parser": "^2.10.0",
     "eslint": "^6.7.2",
-    "eslint-config-airbnb-base": "^14.0.0",
     "eslint-plugin-import": "^2.18.2",
     "jest": "^24.9.0",
     "mustache": "^3.1.0",
