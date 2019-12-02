@@ -1,0 +1,27 @@
+{
+  "name": "elevator-saga",
+  "version": "1.0.0",
+  "description": "Solution to elevator saga",
+  "main": "dist/index.js",
+  "repository": "git@github.com:danielholmes/elevator-saga.git",
+  "author": "Daniel Holmes <daniel@danielholmes.org>",
+  "license": "MIT",
+  "scripts": {
+    "lint": "eslint --fix src",
+    "lint:check": "eslint src",
+    "test": "jest --env=jsdom",
+    "build": "run-p test lint:check && babel -o ./dist/init.js src/init.js && node ./scripts/build.js"
+  },
+  "devDependencies": {
+    "@babel/cli": "^7.7.4",
+    "@babel/core": "^7.7.4",
+    "@babel/preset-env": "^7.7.4",
+    "eslint": "^6.7.2",
+    "eslint-config-airbnb-base": "^14.0.0",
+    "eslint-plugin-import": "^2.18.2",
+    "jest": "^24.9.0",
+    "mustache": "^3.1.0",
+    "npm-run-all": "^4.1.5",
+    "typescript": "^3.7.2"
+  }
+}
