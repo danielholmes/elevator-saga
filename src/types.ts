@@ -11,6 +11,11 @@ export interface Elevator {
   loadFactor(): number;
   maxPassengerCount(): number;
 
+  goingUpIndicator(): boolean;
+  goingUpIndicator(newValue: boolean): void;
+  goingDownIndicator(): boolean;
+  goingDownIndicator(newValue: boolean): void;
+
   on(name: 'floor_button_pressed', handler: (floorNum: FloorNumber) => void): void;
   on(name: 'idle', handler: () => void): void;
 }

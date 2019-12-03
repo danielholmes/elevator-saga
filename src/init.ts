@@ -4,22 +4,27 @@ declare const elevators: ReadonlyArray<Elevator>;
 declare const floors: ReadonlyArray<Floor>;
 
 export default function(): void {
-  const timePerStop = 2
-  const timePerFloor = 1
+  const epsilon = 0.00001
+  const timePerStop = 1
+  const moveOverhead = 0.5
+  const timePerFloor = 0.5
 
-  function getPathTime(elevator: Elevator, path: ReadonlyArray<FloorNumber>): number {
-    const fullPath = [elevator.currentFloor(), ...path]
+  function getTravelTime(fullPath: ReadonlyArray<FloorNumber>): number {
     let time = 0;
     for (let i = 1; i < fullPath.length; i += 1) {
       const from = fullPath[i - 1];
       const to = fullPath[i];
-      time += Math.abs(from - to) * timePerFloor + timePerStop;
+      time += moveOverhead + Math.abs(from - to) * timePerFloor + timePerStop;
     }
     return time;
   }
 
+  function getElevatorTravelTime(elevator: Elevator, path: ReadonlyArray<FloorNumber>): number {
+    return getTravelTime([elevator.currentFloor(), ...path])
+  }
+
   function getCurrentPathLength(elevator: Elevator): number {
-    return getPathTime(elevator, elevator.destinationQueue)
+    return getElevatorTravelTime(elevator, elevator.destinationQueue)
   }
 
   interface DestinationQueueWithLength {
@@ -50,7 +55,7 @@ export default function(): void {
 
     // TODO: Can be done more efficiently, pruning paths that have gone over current max
     const options = createAllPermutations([floorNum, ...elevator.destinationQueue])
-      .map((queue): DestinationQueueWithLength => ({queue, length: getPathTime(elevator, queue)}))
+      .map((queue): DestinationQueueWithLength => ({queue, length: getElevatorTravelTime(elevator, queue)}))
     options.sort((option1, option2) =>
       option1.length - option2.length
     )
@@ -59,8 +64,12 @@ export default function(): void {
 
   function isFull(elevator: Elevator): boolean {
     const averageLoadFactorPerPerson = 1 / elevator.maxPassengerCount()
-    const averagePersonSizeBuffer = 1.3
+    const averagePersonSizeBuffer = 1.5
     return (1 - elevator.loadFactor()) < (averageLoadFactorPerPerson * averagePersonSizeBuffer)
+  }
+
+  function isEmpty(elevator: Elevator): boolean {
+    return elevator.loadFactor() < epsilon;
   }
 
   function getClosestElevator(elevators: ReadonlyArray<Elevator>, floorNum: FloorNumber): Elevator | undefined {
@@ -101,9 +110,12 @@ export default function(): void {
   }
 
   elevators.forEach((elevator) => {
-    // elevator.on('idle', () => {
-    //   goToClosest(elevator, elevator.getPressedFloors());
-    // });
+    elevator.on('idle', () => {
+      if (isEmpty(elevator)) {
+        elevator.destinationQueue = [floors.length / 2 - 1]
+        elevator.checkDestinationQueue()
+      }
+    });
 
     elevator.on('floor_button_pressed', (floorNum: FloorNumber) => {
       goToFloorInShortestPath(elevator, floorNum);
