@@ -11,7 +11,8 @@
     "lint": "eslint --fix src --ext .ts",
     "lint:check": "eslint src --ext .ts",
     "test": "jest --env=jsdom src",
-    "build": "run-p test lint:check ts && babel -o ./dist/init.js src/init.ts && node ./scripts/build.js && rm ./dist/init.js"
+    "test:watch": "jest --env=jsdom --watch src",
+    "build": "CI=true run-p test lint:check ts && babel -o ./dist/init.js src/init.ts && node ./scripts/build.js && rm ./dist/init.js"
   },
   "devDependencies": {
     "@babel/cli": "^7.7.4",

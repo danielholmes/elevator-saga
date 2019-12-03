@@ -1,12 +1,15 @@
 export type FloorNumber = number;
 
 export interface Elevator {
-  readonly destinationQueue: Array<FloorNumber>;
+  destinationQueue: Array<FloorNumber>;
   checkDestinationQueue(): void;
 
   currentFloor(): FloorNumber;
   goToFloor(floorNum: FloorNumber): void;
   getPressedFloors(): ReadonlyArray<FloorNumber>;
+
+  loadFactor(): number;
+  maxPassengerCount(): number;
 
   on(name: 'floor_button_pressed', handler: (floorNum: FloorNumber) => void): void;
   on(name: 'idle', handler: () => void): void;

@@ -4,81 +4,100 @@ declare const elevators: ReadonlyArray<Elevator>;
 declare const floors: ReadonlyArray<Floor>;
 
 export default function(): void {
-  function getWorkToGetTo(elevator: Elevator, floorNum: FloorNumber): number {
-    const targets = [elevator.currentFloor(), ...elevator.destinationQueue, floorNum];
-    let distance = 0;
-    for (let i = 1; i < targets.length; i += 1) {
-      const from = targets[i - 1];
-      const to = targets[i];
-      distance += Math.abs(from - to);
+  const timePerStop = 2
+  const timePerFloor = 1
+
+  function getPathTime(elevator: Elevator, path: ReadonlyArray<FloorNumber>): number {
+    const fullPath = [elevator.currentFloor(), ...path]
+    let time = 0;
+    for (let i = 1; i < fullPath.length; i += 1) {
+      const from = fullPath[i - 1];
+      const to = fullPath[i];
+      time += Math.abs(from - to) * timePerFloor + timePerStop;
     }
-    return distance;
+    return time;
   }
 
-  function getClosestElevator(elevators: ReadonlyArray<Elevator>, floorNum: FloorNumber): Elevator {
+  function getCurrentPathLength(elevator: Elevator): number {
+    return getPathTime(elevator, elevator.destinationQueue)
+  }
+
+  interface DestinationQueueWithLength {
+    readonly queue: ReadonlyArray<FloorNumber>;
+    readonly length: number;
+  }
+
+  function createAllPermutations(floors: ReadonlyArray<FloorNumber>): ReadonlyArray<ReadonlyArray<FloorNumber>> {
+    if (floors.length === 1) {
+      return [floors]
+    }
+
+    return floors.reduce(
+      (accu: ReadonlyArray<ReadonlyArray<FloorNumber>>, current: FloorNumber): ReadonlyArray<ReadonlyArray<FloorNumber>> => {
+        const otherFloors = floors.filter(f => f !== current);
+        const otherPerms = createAllPermutations(otherFloors);
+        const perms = otherPerms.map(otherPerm => [current, ...otherPerm])
+        return [...perms, ...accu]
+      },
+      [] as ReadonlyArray<ReadonlyArray<FloorNumber>>
+    )
+  }
+
+  function getShortestDestinationQueue(elevator: Elevator, floorNum: FloorNumber): DestinationQueueWithLength | undefined {
+    if (elevator.destinationQueue.indexOf(floorNum) >= 0) {
+      return undefined
+    }
+
+    // TODO: Can be done more efficiently, pruning paths that have gone over current max
+    const options = createAllPermutations([floorNum, ...elevator.destinationQueue])
+      .map((queue): DestinationQueueWithLength => ({queue, length: getPathTime(elevator, queue)}))
+    options.sort((option1, option2) =>
+      option1.length - option2.length
+    )
+    return options[0]
+  }
+
+  function isFull(elevator: Elevator): boolean {
+    const averageLoadFactorPerPerson = 1 / elevator.maxPassengerCount()
+    const averagePersonSizeBuffer = 1.3
+    return (1 - elevator.loadFactor()) < (averageLoadFactorPerPerson * averagePersonSizeBuffer)
+  }
+
+  function getClosestElevator(elevators: ReadonlyArray<Elevator>, floorNum: FloorNumber): Elevator | undefined {
     if (elevators.length === 0) {
       throw new Error('Must provide an elevator')
     }
 
-    const closest = elevators.slice();
-    closest.sort((e1, e2) => {
-      const e1Index = e1.destinationQueue.indexOf(floorNum);
-      const e2Index = e2.destinationQueue.indexOf(floorNum);
-      if (e1Index >= 0) {
-        return -1;
-      }
-      if (e2Index >= 0) {
-        return 1;
-      }
-      // Send to shortest destination queue
-      const e1WorkToDo = getWorkToGetTo(e1, floorNum);
-      const e2WorkToDo = getWorkToGetTo(e2, floorNum);
-      if (e1WorkToDo !== e2WorkToDo) {
-        return e1WorkToDo - e2WorkToDo;
-      }
-      // Send to whoever is closest
-      return Math.abs(e2.currentFloor() - floorNum) - Math.abs(e1.currentFloor() - floorNum);
-    });
-    return closest[0];
-  }
-
-  // export function goToClosest(elevator: Elevator, floorNumbers: ReadonlyArray<FloorNumber>): void {
-  //   if (floorNumbers.length === 0) {
-  //     return;
-  //   }
-  //
-  //   const floorsByDistance = floorNumbers.slice(0);
-  //   floorsByDistance.sort((f1, f2): number => Math.abs(elevator.currentFloor() - f1)
-  //     - Math.abs(elevator.currentFloor() - f2));
-  //   elevator.goToFloor(floorsByDistance[0]);
-  // }
-
-  function getPathLength(elevator: Elevator, path: ReadonlyArray<FloorNumber>): number {
-    const fullPath = [elevator.currentFloor(), ...path]
-    let distance = 0;
-    for (let i = 1; i < fullPath.length; i += 1) {
-      const from = fullPath[i - 1];
-      const to = fullPath[i];
-      distance += Math.abs(from - to);
+    const availableElevators = elevators.filter(e => !isFull(e));
+    if (availableElevators.length === 0) {
+      return undefined
     }
-    return distance;
+
+    const queues = availableElevators.map(elevator => ({
+      elevator,
+      shortest: getShortestDestinationQueue(elevator, floorNum)
+    }))
+    queues.sort((q1, q2) => {
+      if (q1.shortest === undefined) {
+        return -1
+      }
+      if (q2.shortest === undefined) {
+        return 1
+      }
+      const queuesWithLengths = queues.filter(q => q.shortest)
+      const q1OtherTotalLength = queuesWithLengths.filter(queue => queue.elevator !== q1.elevator).map(q => getCurrentPathLength(q.elevator)).reduce((a, b) => a + b)
+      const q2OtherTotalLength = queuesWithLengths.filter(queue => queue.elevator !== q2.elevator).map(q => getCurrentPathLength(q.elevator)).reduce((a, b) => a + b)
+      return (q1.shortest.length + q1OtherTotalLength) - (q2.shortest.length + q2OtherTotalLength)
+    })
+    return queues[0].elevator
   }
 
   function goToFloorInShortestPath(elevator: Elevator, floorNum: FloorNumber): void {
-    if (elevator.destinationQueue.indexOf(floorNum) >= 0) {
-      return
+    const shortest = getShortestDestinationQueue(elevator, floorNum)
+    if (shortest) {
+      elevator.destinationQueue = shortest.queue.slice();
+      elevator.checkDestinationQueue();
     }
-
-    const options = Array(elevator.destinationQueue.length + 1).fill(undefined)
-      .map((_, i) => {
-        const option = elevator.destinationQueue.slice(0)
-        option.splice(i, 0, floorNum)
-        return [i, getPathLength(elevator, option)]
-      })
-    options.sort((option1, option2) => option1[1] - option2[1])
-    const targetIndex = options[0][0]
-    elevator.destinationQueue.splice(targetIndex, 0, floorNum);
-    elevator.checkDestinationQueue();
   }
 
   elevators.forEach((elevator) => {
@@ -93,12 +112,16 @@ export default function(): void {
 
   floors.forEach((floor: Floor) => {
     floor.on('up_button_pressed', () => {
-      // TODO: Insert into queue for shortest move
-      getClosestElevator(elevators, floor.floorNum()).goToFloor(floor.floorNum());
+      const closest = getClosestElevator(elevators, floor.floorNum())
+      if (closest) {
+        goToFloorInShortestPath(closest, floor.floorNum())
+      }
     });
     floor.on('down_button_pressed', () => {
-      // TODO: Insert into queue for shortest move
-      getClosestElevator(elevators, floor.floorNum()).goToFloor(floor.floorNum());
+      const closest = getClosestElevator(elevators, floor.floorNum())
+      if (closest) {
+        goToFloorInShortestPath(closest, floor.floorNum())
+      }
     });
   });
 }
