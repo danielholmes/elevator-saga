@@ -115,6 +115,15 @@ export default function(): void {
     elevator.checkDestinationQueue();
   }
 
+  function removeNonPassengerFloors(checkElevators: ReadonlyArray<Elevator>, floorNum: FloorNumber): void {
+    checkElevators.filter(e => e.destinationQueue.indexOf(floorNum) >= 0)
+      .filter(e => e.getPressedFloors().indexOf(floorNum) === -1)
+      .forEach(e => {
+        e.destinationQueue = e.destinationQueue.filter(d => d !== floorNum)
+        e.checkDestinationQueue()
+      })
+  }
+
   elevators.forEach((elevator) => {
     elevator.on('idle', () => {
       if (isEmpty(elevator)) {
@@ -133,12 +142,14 @@ export default function(): void {
       const closest = getClosestElevator(elevators, floor.floorNum())
       if (closest) {
         goToFloorInShortestPath(closest, floor.floorNum())
+        removeNonPassengerFloors(elevators.filter(e => e !== closest), floor.floorNum())
       }
     });
     floor.on('down_button_pressed', () => {
       const closest = getClosestElevator(elevators, floor.floorNum())
       if (closest) {
         goToFloorInShortestPath(closest, floor.floorNum())
+        removeNonPassengerFloors(elevators.filter(e => e !== closest), floor.floorNum())
       }
     });
   });

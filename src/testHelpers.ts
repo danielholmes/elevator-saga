@@ -46,6 +46,7 @@ export function createStubElevator(
     destinationQueue?: ReadonlyArray<FloorNumber>;
     maxPassengerCount?: number;
     loadFactor?: number;
+    pressedFloors?: ReadonlyArray<FloorNumber>;
   } = {}
 ): StubElevator {
   const floorButtonPressedHandlers: Array<FloorNumberHandler> = []
@@ -90,7 +91,7 @@ export function createStubElevator(
       }
     },
     getPressedFloors(): ReadonlyArray<FloorNumber> {
-      return []
+      return options.pressedFloors || []
     },
     on(name: 'idle' | 'floor_button_pressed', handler: FloorNumberHandler | EmptyHandler): void {
       if (name === 'floor_button_pressed') {

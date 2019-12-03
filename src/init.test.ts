@@ -96,10 +96,17 @@ describe('init', () => {
       expect(elevator1.checkDestinationQueue).not.toBeCalled()
     })
 
-    // TODO: For this case, remove from other elevator if not a passenger that requested
     it('move empty elevator even though another already going', () => {
-      const elevator0 = createStubElevator({ currentFloor: 1, destinationQueue: [0, 5]})
-      const elevator1 = createStubElevator({currentFloor: 3, destinationQueue: []})
+      const elevator0 = createStubElevator({
+        currentFloor: 1,
+        destinationQueue: [0, 5],
+        pressedFloors: [0]
+      })
+      const elevator1 = createStubElevator({
+        currentFloor: 3,
+        destinationQueue: [],
+        pressedFloors: []
+      })
       global.elevators = [elevator0, elevator1];
       const floors = createFloors(6)
       global.floors = floors
@@ -108,8 +115,8 @@ describe('init', () => {
       const targetFloor = floors[5]
       targetFloor.__handlers.upButtonPressed.forEach(h => h())
 
-      expect(elevator0.destinationQueue).toEqual([0, 5])
-      //expect(elevator0.checkDestinationQueue).not.toBeCalled()
+      expect(elevator0.destinationQueue).toEqual([0])
+      expect(elevator0.checkDestinationQueue).toBeCalled()
       expect(elevator1.destinationQueue).toEqual([5])
       expect(elevator1.checkDestinationQueue).toBeCalled()
     })
