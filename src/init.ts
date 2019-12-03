@@ -3,12 +3,7 @@ import {Elevator, Floor, FloorNumber} from "./types";
 declare const elevators: ReadonlyArray<Elevator>;
 declare const floors: ReadonlyArray<Floor>;
 
-export default function() {
-  /**
-   * @deprecated
-   * @param elevator
-   * @param floorNum
-   */
+export default function(): void {
   function getWorkToGetTo(elevator: Elevator, floorNum: FloorNumber): number {
     const targets = [elevator.currentFloor(), ...elevator.destinationQueue, floorNum];
     let distance = 0;
@@ -80,7 +75,7 @@ export default function() {
         option.splice(i, 0, floorNum)
         return [i, getPathLength(elevator, option)]
       })
-    options.sort(([i1, length1], [i2, length2]) => length1 - length2)
+    options.sort((option1, option2) => option1[1] - option2[1])
     const targetIndex = options[0][0]
     elevator.destinationQueue.splice(targetIndex, 0, floorNum);
     elevator.checkDestinationQueue();

@@ -3,7 +3,7 @@ import init from './init'
 
 function createFloors(amount: number): ReadonlyArray<Floor> {
   return Array(amount).fill(undefined).map((_, i) => ({
-    floorNum() { return i; },
+    floorNum(): FloorNumber { return i; },
     on: jest.fn()
   }))
 }
