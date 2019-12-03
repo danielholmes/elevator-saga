@@ -4,6 +4,11 @@ declare const elevators: ReadonlyArray<Elevator>;
 declare const floors: ReadonlyArray<Floor>;
 
 export default function() {
+  /**
+   * @deprecated
+   * @param elevator
+   * @param floorNum
+   */
   function getWorkToGetTo(elevator: Elevator, floorNum: FloorNumber): number {
     const targets = [elevator.currentFloor(), ...elevator.destinationQueue, floorNum];
     let distance = 0;
@@ -53,11 +58,31 @@ export default function() {
   //   elevator.goToFloor(floorsByDistance[0]);
   // }
 
+  function getPathLength(elevator: Elevator, path: ReadonlyArray<FloorNumber>): number {
+    const fullPath = [elevator.currentFloor(), ...path]
+    let distance = 0;
+    for (let i = 1; i < fullPath.length; i += 1) {
+      const from = fullPath[i - 1];
+      const to = fullPath[i];
+      distance += Math.abs(from - to);
+    }
+    return distance;
+  }
+
   function goToFloorInShortestPath(elevator: Elevator, floorNum: FloorNumber): void {
     if (elevator.destinationQueue.indexOf(floorNum) >= 0) {
       return
     }
-    elevator.destinationQueue.push(floorNum);
+
+    const options = Array(elevator.destinationQueue.length + 1).fill(undefined)
+      .map((_, i) => {
+        const option = elevator.destinationQueue.slice(0)
+        option.splice(i, 0, floorNum)
+        return [i, getPathLength(elevator, option)]
+      })
+    options.sort(([i1, length1], [i2, length2]) => length1 - length2)
+    const targetIndex = options[0][0]
+    elevator.destinationQueue.splice(targetIndex, 0, floorNum);
     elevator.checkDestinationQueue();
   }
 

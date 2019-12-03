@@ -47,7 +47,7 @@ describe('floor_button_pressed', () => {
   beforeEach(() => {
     elevator = createStubElevator()
     global.elevators = [elevator];
-    global.floors = createFloors(2)
+    global.floors = createFloors(4)
   })
 
   afterEach(() => {
@@ -71,5 +71,16 @@ describe('floor_button_pressed', () => {
 
     expect(elevator.destinationQueue).toEqual([1])
     expect(elevator.checkDestinationQueue).not.toBeCalled()
+  });
+
+  it('will insert if shorter', () => {
+    elevator.destinationQueue.push(1)
+    elevator.destinationQueue.push(3)
+
+    init()
+    elevator.__handlers.floorButtonPressed.forEach(h => h(2))
+
+    expect(elevator.destinationQueue).toEqual([1, 2, 3])
+    expect(elevator.checkDestinationQueue).toBeCalled()
   });
 });
