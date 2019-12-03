@@ -23,7 +23,7 @@ export default function(): void {
     return getTravelTime([elevator.currentFloor(), ...path])
   }
 
-  function getCurrentPathLength(elevator: Elevator): number {
+  function getCurrentTravelTime(elevator: Elevator): number {
     return getElevatorTravelTime(elevator, elevator.destinationQueue)
   }
 
@@ -32,15 +32,16 @@ export default function(): void {
     readonly length: number;
   }
 
-  function createAllPermutations(floors: ReadonlyArray<FloorNumber>): ReadonlyArray<ReadonlyArray<FloorNumber>> {
-    if (floors.length === 1) {
-      return [floors]
+  function createAllPermutations(floors: ReadonlySet<FloorNumber>): ReadonlyArray<ReadonlyArray<FloorNumber>> {
+    const floorsArray = Array.from(floors);
+    if (floorsArray.length === 1) {
+      return [floorsArray]
     }
 
-    return floors.reduce(
+    return floorsArray.reduce(
       (accu: ReadonlyArray<ReadonlyArray<FloorNumber>>, current: FloorNumber): ReadonlyArray<ReadonlyArray<FloorNumber>> => {
-        const otherFloors = floors.filter(f => f !== current);
-        const otherPerms = createAllPermutations(otherFloors);
+        const otherFloors = floorsArray.filter(f => f !== current);
+        const otherPerms = createAllPermutations(new Set(otherFloors));
         const perms = otherPerms.map(otherPerm => [current, ...otherPerm])
         return [...perms, ...accu]
       },
@@ -48,13 +49,9 @@ export default function(): void {
     )
   }
 
-  function getShortestDestinationQueue(elevator: Elevator, floorNum: FloorNumber): DestinationQueueWithLength | undefined {
-    if (elevator.destinationQueue.indexOf(floorNum) >= 0) {
-      return undefined
-    }
-
+  function getShortestDestinationQueue(elevator: Elevator, floorNum: FloorNumber): DestinationQueueWithLength {
     // TODO: Can be done more efficiently, pruning paths that have gone over current max
-    const options = createAllPermutations([floorNum, ...elevator.destinationQueue])
+    const options = createAllPermutations(new Set([floorNum, ...elevator.destinationQueue]))
       .map((queue): DestinationQueueWithLength => ({queue, length: getElevatorTravelTime(elevator, queue)}))
     options.sort((option1, option2) =>
       option1.length - option2.length
@@ -87,26 +84,35 @@ export default function(): void {
       shortest: getShortestDestinationQueue(elevator, floorNum)
     }))
     queues.sort((q1, q2) => {
-      if (q1.shortest === undefined) {
-        return -1
+      const queue1Others = queues.filter(queue => queue.elevator !== q1.elevator)
+      const q1Lengths = [
+        ...queue1Others.map(q => getCurrentTravelTime(q.elevator)),
+        q1.shortest.length
+      ]
+      const queue2Others = queues.filter(queue => queue.elevator !== q2.elevator)
+      const q2Lengths = [
+        ...queue2Others.map(q => getCurrentTravelTime(q.elevator)),
+        q2.shortest.length
+      ]
+      const q1Length = Math.max.apply(undefined, q1Lengths)
+      const q2Length = Math.max.apply(undefined, q2Lengths)
+      if (q1Length !== q2Length) {
+        return q1Length - q2Length
       }
-      if (q2.shortest === undefined) {
-        return 1
-      }
-      const queuesWithLengths = queues.filter(q => q.shortest)
-      const q1OtherTotalLength = queuesWithLengths.filter(queue => queue.elevator !== q1.elevator).map(q => getCurrentPathLength(q.elevator)).reduce((a, b) => a + b)
-      const q2OtherTotalLength = queuesWithLengths.filter(queue => queue.elevator !== q2.elevator).map(q => getCurrentPathLength(q.elevator)).reduce((a, b) => a + b)
-      return (q1.shortest.length + q1OtherTotalLength) - (q2.shortest.length + q2OtherTotalLength)
+      // Equal times for all elevators, want the better service (more stops)
+      const q1OtherElevatorStops = availableElevators.filter(e => e !== q1.elevator).map(e => e.destinationQueue.length).reduce((a, b) => a + b)
+      const q1Stops = q1.shortest.queue.length + q1OtherElevatorStops
+      const q2OtherElevatorStops = availableElevators.filter(e => e !== q2.elevator).map(e => e.destinationQueue.length).reduce((a, b) => a + b)
+      const q2Stops = q2.shortest.queue.length + q2OtherElevatorStops
+      return q2Stops - q1Stops
     })
     return queues[0].elevator
   }
 
   function goToFloorInShortestPath(elevator: Elevator, floorNum: FloorNumber): void {
     const shortest = getShortestDestinationQueue(elevator, floorNum)
-    if (shortest) {
-      elevator.destinationQueue = shortest.queue.slice();
-      elevator.checkDestinationQueue();
-    }
+    elevator.destinationQueue = shortest.queue.slice();
+    elevator.checkDestinationQueue();
   }
 
   elevators.forEach((elevator) => {

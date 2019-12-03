@@ -60,20 +60,20 @@ describe('init', () => {
         currentFloor: 0
       })
       const elevator1 = createStubElevator({
-        currentFloor: 3,
-        destinationQueue: [5]
+        currentFloor: 8,
+        destinationQueue: [9]
       })
       global.elevators = [elevator0, elevator1];
-      const floors = createFloors(6)
+      const floors = createFloors(10)
       global.floors = floors
 
       init()
-      const targetFloor = floors[4]
+      const targetFloor = floors[8]
       targetFloor.__handlers.upButtonPressed.forEach(h => h())
 
       expect(elevator0.destinationQueue).toEqual([])
       expect(elevator0.checkDestinationQueue).not.toBeCalled()
-      expect(elevator1.destinationQueue).toEqual([4, 5])
+      expect(elevator1.destinationQueue).toEqual([8, 9])
       expect(elevator1.checkDestinationQueue).toBeCalled()
     })
 
@@ -94,6 +94,24 @@ describe('init', () => {
       expect(elevator0.checkDestinationQueue).toBeCalled()
       expect(elevator1.destinationQueue).toEqual([])
       expect(elevator1.checkDestinationQueue).not.toBeCalled()
+    })
+
+    // TODO: For this case, remove from other elevator if not a passenger that requested
+    it('move empty elevator even though another already going', () => {
+      const elevator0 = createStubElevator({ currentFloor: 1, destinationQueue: [0, 5]})
+      const elevator1 = createStubElevator({currentFloor: 3, destinationQueue: []})
+      global.elevators = [elevator0, elevator1];
+      const floors = createFloors(6)
+      global.floors = floors
+
+      init()
+      const targetFloor = floors[5]
+      targetFloor.__handlers.upButtonPressed.forEach(h => h())
+
+      expect(elevator0.destinationQueue).toEqual([0, 5])
+      //expect(elevator0.checkDestinationQueue).not.toBeCalled()
+      expect(elevator1.destinationQueue).toEqual([5])
+      expect(elevator1.checkDestinationQueue).toBeCalled()
     })
   })
 
@@ -121,7 +139,7 @@ describe('init', () => {
       elevator.__handlers.floorButtonPressed.forEach(h => h(1))
 
       expect(elevator.destinationQueue).toEqual([1])
-      expect(elevator.checkDestinationQueue).not.toBeCalled()
+      expect(elevator.checkDestinationQueue).toBeCalled()
     });
 
     it('will insert if shorter', () => {
