@@ -8,9 +8,9 @@
   "license": "MIT",
   "scripts": {
     "ts": "tsc -p tsconfig.json",
-    "lint": "eslint --fix src",
-    "lint:check": "eslint src",
-    "test": "jest --env=jsdom",
+    "lint": "eslint --fix src --ext .ts",
+    "lint:check": "eslint src --ext .ts",
+    "test": "jest --env=jsdom src",
     "build": "run-p test lint:check ts && babel -o ./dist/init.js src/init.ts && node ./scripts/build.js"
   },
   "devDependencies": {
@@ -18,6 +18,7 @@
     "@babel/core": "^7.7.4",
     "@babel/preset-env": "^7.7.4",
     "@babel/preset-typescript": "^7.7.4",
+    "@types/jest": "^24.0.23",
     "@typescript-eslint/eslint-plugin": "^2.10.0",
     "@typescript-eslint/parser": "^2.10.0",
     "eslint": "^6.7.2",
