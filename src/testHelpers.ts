@@ -1,4 +1,12 @@
-import {Elevator, EmptyHandler, Floor, FloorNumber, FloorNumberHandler} from "./types";
+import {
+  DestinationDirection,
+  Elevator,
+  EmptyHandler,
+  Floor,
+  FloorNumber,
+  FloorNumberHandler,
+  MovementHandler
+} from "./types";
 
 interface StubFloor extends Floor {
   __handlers: Readonly<{
@@ -51,6 +59,7 @@ export function createStubElevator(
 ): StubElevator {
   const floorButtonPressedHandlers: Array<FloorNumberHandler> = []
   const initHandlers: Array<EmptyHandler> = []
+
   const currentFloor: FloorNumber = options.currentFloor || 0
 
   const destinationQueue: Array<FloorNumber> = options.destinationQueue ? options.destinationQueue.slice() : []
@@ -62,6 +71,9 @@ export function createStubElevator(
       floorButtonPressed: floorButtonPressedHandlers
     },
 
+    destinationDirection(): DestinationDirection {
+      return 'up'
+    },
     destinationQueue,
     checkDestinationQueue,
 
@@ -90,16 +102,23 @@ export function createStubElevator(
         checkDestinationQueue()
       }
     },
+    stop(): void {
+      // Not used
+    },
+
     getPressedFloors(): ReadonlyArray<FloorNumber> {
       return options.pressedFloors || []
     },
-    on(name: 'idle' | 'floor_button_pressed', handler: FloorNumberHandler | EmptyHandler): void {
+    on(
+      name: 'idle' | 'floor_button_pressed' | 'passing_floor' | 'stopped_at_floor',
+      handler: FloorNumberHandler | EmptyHandler | MovementHandler
+    ): void {
       if (name === 'floor_button_pressed') {
-        floorButtonPressedHandlers.push(handler)
+        floorButtonPressedHandlers.push((num) => handler(num, 'up'))
         return
       }
       if (name === 'idle') {
-        initHandlers.push(() => handler(0))
+        initHandlers.push(() => handler(0, 'up'))
       }
     }
   }

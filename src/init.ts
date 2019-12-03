@@ -3,6 +3,8 @@ import {Elevator, Floor, FloorNumber} from "./types";
 declare const elevators: ReadonlyArray<Elevator>;
 declare const floors: ReadonlyArray<Floor>;
 
+type DestinationQueue = ReadonlyArray<FloorNumber>
+
 export default function(): void {
   const epsilon = 0.00001
   const timePerStop = 1
@@ -19,43 +21,56 @@ export default function(): void {
     return time;
   }
 
-  function getElevatorTravelTime(elevator: Elevator, path: ReadonlyArray<FloorNumber>): number {
-    return getTravelTime([elevator.currentFloor(), ...path])
+  function getElevatorTravelTime(elevator: Elevator, queue: DestinationQueue): number {
+    return getTravelTime([elevator.currentFloor(), ...queue])
   }
 
   function getCurrentTravelTime(elevator: Elevator): number {
     return getElevatorTravelTime(elevator, elevator.destinationQueue)
   }
 
-  interface DestinationQueueWithLength {
-    readonly queue: ReadonlyArray<FloorNumber>;
-    readonly length: number;
+  interface TimedDestinationQueue {
+    readonly queue: DestinationQueue;
+    readonly time: number;
   }
 
-  function createAllPermutations(floors: ReadonlySet<FloorNumber>): ReadonlyArray<ReadonlyArray<FloorNumber>> {
+  function getShortestQueuesFrom(
+    fromFloor: FloorNumber,
+    floors: ReadonlySet<FloorNumber>,
+    maxTime: number
+  ): ReadonlyArray<TimedDestinationQueue> {
     const floorsArray = Array.from(floors);
     if (floorsArray.length === 1) {
-      return [floorsArray]
+      return [
+        {
+          queue: floorsArray,
+          time: getTravelTime([fromFloor, ...floorsArray])
+        }
+      ]
     }
 
-    return floorsArray.reduce(
-      (accu: ReadonlyArray<ReadonlyArray<FloorNumber>>, current: FloorNumber): ReadonlyArray<ReadonlyArray<FloorNumber>> => {
-        const otherFloors = floorsArray.filter(f => f !== current);
-        const otherPerms = createAllPermutations(new Set(otherFloors));
-        const perms = otherPerms.map(otherPerm => [current, ...otherPerm])
-        return [...perms, ...accu]
+    const floorResults = floorsArray.reduce(
+      (accu: ReadonlyArray<TimedDestinationQueue>, current: FloorNumber): ReadonlyArray<TimedDestinationQueue> => {
+        const otherFloors = new Set(floorsArray.filter(f => f !== current));
+        const longestAccu = Math.max.apply(undefined, [maxTime, ...accu.map(q => q.time)])
+        const otherPerms = getShortestQueuesFrom(current, otherFloors, longestAccu);
+        const perms: ReadonlyArray<TimedDestinationQueue> = otherPerms.map(otherPerm => ({
+          queue: [current, ...otherPerm.queue],
+          time: getTravelTime([fromFloor, current, ...otherPerm.queue])
+        }))
+          .filter(({ time }) => time <= maxTime)
+        return perms.concat(accu)
       },
-      [] as ReadonlyArray<ReadonlyArray<FloorNumber>>
+      [] as ReadonlyArray<TimedDestinationQueue>
     )
+    const lowestTime = Math.min.apply(undefined, floorResults.map(({ time }) => time))
+    return floorResults.filter(({ time }) => time === lowestTime)
   }
 
-  function getShortestDestinationQueue(elevator: Elevator, floorNum: FloorNumber): DestinationQueueWithLength {
-    // TODO: Can be done more efficiently, pruning paths that have gone over current max
-    const options = createAllPermutations(new Set([floorNum, ...elevator.destinationQueue]))
-      .map((queue): DestinationQueueWithLength => ({queue, length: getElevatorTravelTime(elevator, queue)}))
-    options.sort((option1, option2) =>
-      option1.length - option2.length
-    )
+  function getShortestDestinationQueue(elevator: Elevator, floorNum: FloorNumber): TimedDestinationQueue {
+    const floors = new Set([floorNum, ...elevator.destinationQueue]);
+    const options = getShortestQueuesFrom(elevator.currentFloor(), floors, Number.MAX_VALUE).slice()
+    // Choose a random. Is there another rule to use for equal distances?
     return options[0]
   }
 
@@ -87,12 +102,12 @@ export default function(): void {
       const queue1Others = queues.filter(queue => queue.elevator !== q1.elevator)
       const q1Lengths = [
         ...queue1Others.map(q => getCurrentTravelTime(q.elevator)),
-        q1.shortest.length
+        q1.shortest.time
       ]
       const queue2Others = queues.filter(queue => queue.elevator !== q2.elevator)
       const q2Lengths = [
         ...queue2Others.map(q => getCurrentTravelTime(q.elevator)),
-        q2.shortest.length
+        q2.shortest.time
       ]
       const q1Length = Math.max.apply(undefined, q1Lengths)
       const q2Length = Math.max.apply(undefined, q2Lengths)
